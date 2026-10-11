@@ -1,6 +1,6 @@
 ---
 name: zoho-time
-description: Log billable time on a GitHub issue to Zoho Invoice timesheets. Use when an issue in harbor-clinic or a Bluebird repo (topic client-bluebird) is done or the session ends, or when asked to log time, e.g. "log 3h on bluebird-www #39 today".
+description: Log billable time on a GitHub issue to Zoho Invoice timesheets. Use when work on an issue in a billable client repo is done or the session ends, or when asked to log time, e.g. "log 3h on bluebird-www #39 today".
 ---
 
 # Log time to Zoho Invoice
@@ -11,8 +11,8 @@ The `zoho-time` CLI creates a billable time entry on the Zoho project for the is
 
 ## When
 
-- Work on an issue in **harbor-clinic** or any repo with the topic **client-bluebird** is billable. When the issue is done or the session ends, propose an entry.
-- Other repos aren't billed: don't propose them. If the CLI exits with code 3 ("isn't billable"), say so and stop.
+- Which repos are billable is set in the CLI's config (`billable_repositories` and `billable_topics` in `~/.config/zoho-time/config.json`), and may also be spelled out in the user's own instructions. When an issue in a billable repo is done or the session ends, propose an entry.
+- If you're not sure whether a repo is billable, run the preview: the CLI exits with code 3 ("isn't billable") for any other repo. Then say so and stop; don't propose an entry.
 
 ## Steps
 
