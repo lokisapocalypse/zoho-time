@@ -1,0 +1,10 @@
+{
+    "data_center": "com",
+    "organization_id": "YOUR_ZOHO_INVOICE_ORGANIZATION_ID",
+    "github_owner": "acme-studio",
+    "billable_repositories": ["harbor-clinic"],
+    "billable_topics": ["client-bluebird"],
+    "projects": {
+        "example-repo": "Zoho project name, when it isn't the repository's name"
+    }
+}

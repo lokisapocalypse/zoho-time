@@ -1,0 +1,33 @@
+{
+    "name": "lokisapocalypse/zoho-time",
+    "description": "Log time to Zoho Invoice timesheets from Claude Code.",
+    "type": "project",
+    "license": "MIT",
+    "require": {
+        "php": "^8.3",
+        "ext-curl": "*",
+        "ext-json": "*"
+    },
+    "require-dev": {
+        "laravel/pint": "^1.18",
+        "phpunit/phpunit": "^12.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "ZohoTime\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "ZohoTime\\Tests\\": "tests/"
+        }
+    },
+    "bin": ["bin/zoho-time"],
+    "scripts": {
+        "test": "phpunit",
+        "lint": "pint --test"
+    },
+    "config": {
+        "sort-packages": true
+    }
+}

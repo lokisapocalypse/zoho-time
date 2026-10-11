@@ -1,0 +1,47 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+use ZohoTime\Application\TimeEntryService;
+use ZohoTime\Cli\Application;
+use ZohoTime\Domain\BillingPolicy;
+use ZohoTime\Infrastructure\Config;
+use ZohoTime\Infrastructure\CurlHttpClient;
+use ZohoTime\Infrastructure\GitHubIssueRepository;
+use ZohoTime\Infrastructure\KeychainCredentialStore;
+use ZohoTime\Infrastructure\ProcessRunner;
+use ZohoTime\Infrastructure\ZohoClient;
+use ZohoTime\Infrastructure\ZohoOAuth;
+use ZohoTime\Infrastructure\ZohoProjectRepository;
+use ZohoTime\Infrastructure\ZohoTaskRepository;
+use ZohoTime\Infrastructure\ZohoTimeEntryRepository;
+
+require dirname(realpath(__FILE__)) . '/../vendor/autoload.php';
+
+$runner = new ProcessRunner();
+$http = new CurlHttpClient();
+$credentials = new KeychainCredentialStore($runner);
+$config = static fn (): Config => Config::load(Config::defaultPath());
+
+$application = new Application(
+    static function () use ($config, $credentials, $http, $runner): TimeEntryService {
+        $settings = $config();
+        $zoho = new ZohoClient($settings, new ZohoOAuth($settings, $credentials, $http), $http);
+
+        return new TimeEntryService(
+            new GitHubIssueRepository($runner, $settings->githubOwner()),
+            new ZohoProjectRepository($zoho, $settings),
+            new ZohoTaskRepository($zoho),
+            new ZohoTimeEntryRepository($zoho),
+            new BillingPolicy($settings->billableRepositories(), $settings->billableTopics())
+        );
+    },
+    static fn (): array => [new ZohoOAuth($config(), $credentials, $http), $credentials],
+    STDIN,
+    STDOUT,
+    STDERR,
+    new DateTimeImmutable('today')
+);
+
+exit($application->run(array_slice($argv, 1)));

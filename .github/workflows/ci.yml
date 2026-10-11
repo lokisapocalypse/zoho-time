@@ -1,0 +1,52 @@
+# Runs `composer lint` (Pint, PSR-12) and `composer test` (PHPUnit) on every pull request and on development (the
+# default branch) after each merge, so Renovate's dependency PRs are checked before they're merged.
+# Work goes through PRs, so pushes to other branches aren't checked separately; that would run CI twice per PR push.
+#
+# The tests use fakes for Zoho (tests/Fakes), gh and the Keychain, so no secrets or network access are needed.
+
+name: CI
+
+on:
+  push:
+    branches: [development]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          extensions: curl, json
+          tools: composer:v2
+          coverage: none
+
+      - name: Find Composer's cache directory
+        id: composer-cache
+        run: echo "dir=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/cache@v6
+        with:
+          path: ${{ steps.composer-cache.outputs.dir }}
+          key: composer-${{ runner.os }}-${{ hashFiles('composer.lock') }}
+          restore-keys: composer-${{ runner.os }}-
+
+      - name: Install dependencies
+        run: composer install --no-interaction --no-progress
+
+      - name: Lint (Pint, PSR-12)
+        run: composer lint
+
+      - name: Tests (PHPUnit)
+        run: composer test
