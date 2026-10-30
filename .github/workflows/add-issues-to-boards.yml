@@ -1,0 +1,31 @@
+# Adds every new issue to the project boards, using the shared workflow in Fusani-Applications/workflows, which
+# explains which boards and how the Client field is set. Fixes go there, not here.
+#
+# Needs the ADD_TO_PROJECT_PAT secret set in each repo: a classic personal access token with the `project`,
+# `repo` and `read:org` scopes. Organization secrets don't reach private repos on GitHub's Free plan.
+#
+# This file is the same in every repo (scripts/add-board-workflow.sh in operations copies it and sets the
+# secret). To add an issue that was missed, run the workflow by hand from the Actions tab with its number.
+
+name: Add issues to project boards
+
+on:
+  issues:
+    types: [opened, transferred]
+  workflow_dispatch:
+    inputs:
+      issue:
+        description: Issue number
+        required: true
+        type: number
+
+permissions: {}
+
+jobs:
+  add-to-boards:
+    uses: Fusani-Applications/workflows/.github/workflows/add-issues-to-boards.yml@development
+    with:
+      # A number typed into the Run workflow form arrives as a string, which a number input rejects.
+      issue: ${{ fromJSON(github.event.issue.number || inputs.issue) }}
+    secrets:
+      ADD_TO_PROJECT_PAT: ${{ secrets.ADD_TO_PROJECT_PAT }}
