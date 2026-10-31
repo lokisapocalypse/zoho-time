@@ -43,6 +43,24 @@ final class FakeProjectRepository implements ProjectRepository
     }
 
     /**
+     * Find an added project by name, ignoring case.
+     *
+     * @param string $name The project name.
+     *
+     * @return Project|null
+     */
+    public function findByName(string $name): ?Project
+    {
+        foreach ($this->projects as $project) {
+            if (strcasecmp($project->name(), $name) === 0) {
+                return $project;
+            }
+        }
+
+        return null;
+    }
+
+    /**
      * Give the same user ID on every project.
      *
      * @param Project $project The project.

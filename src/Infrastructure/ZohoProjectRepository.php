@@ -45,16 +45,28 @@ final class ZohoProjectRepository implements ProjectRepository
     {
         $name = $this->config->projectNameFor($repository);
 
+        return $this->findByName($name) ?? throw new RuntimeException(
+            "Zoho has no active project named \"{$name}\" for {$repository}; create it in Zoho Invoice, "
+            . 'or map the repository to an existing project under "projects" in the config.'
+        );
+    }
+
+    /**
+     * Find the active project with a name (case-insensitive).
+     *
+     * @param string $name The Zoho project name.
+     *
+     * @return Project|null
+     */
+    public function findByName(string $name): ?Project
+    {
         foreach ($this->all() as $project) {
             if (strcasecmp($project->name(), $name) === 0) {
                 return $project;
             }
         }
 
-        throw new RuntimeException(
-            "Zoho has no active project named \"{$name}\" for {$repository}; create it in Zoho Invoice, "
-            . 'or map the repository to an existing project under "projects" in the config.'
-        );
+        return null;
     }
 
     /**

@@ -3,6 +3,7 @@
 
 declare(strict_types=1);
 
+use ZohoTime\Application\RecurringEntryService;
 use ZohoTime\Application\TimeEntryService;
 use ZohoTime\Cli\Application;
 use ZohoTime\Domain\BillingPolicy;
@@ -35,6 +36,17 @@ $application = new Application(
             new ZohoTaskRepository($zoho),
             new ZohoTimeEntryRepository($zoho),
             new BillingPolicy($settings->billableRepositories(), $settings->billableTopics())
+        );
+    },
+    static function () use ($config, $credentials, $http): RecurringEntryService {
+        $settings = $config();
+        $zoho = new ZohoClient($settings, new ZohoOAuth($settings, $credentials, $http), $http);
+
+        return new RecurringEntryService(
+            new ZohoProjectRepository($zoho, $settings),
+            new ZohoTaskRepository($zoho),
+            new ZohoTimeEntryRepository($zoho),
+            $settings->recurringEntries()
         );
     },
     static fn (): array => [new ZohoOAuth($config(), $credentials, $http), $credentials],

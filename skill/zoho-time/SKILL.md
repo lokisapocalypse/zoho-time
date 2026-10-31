@@ -29,6 +29,16 @@ The `zoho-time` CLI creates a billable time entry on the Zoho project for the is
 
 Never pass `--confirm` without that yes, even when asked to log time in the same message. A request to log time is not a confirmation of the previewed entry.
 
+## Recurring monthly entries
+
+Fixed blocks billed every month (hosting, maintenance, backups) are listed under `recurring` in the config, each on a task with its exact hours. They're dated the month's last day and aren't rounded.
+
+1. **Preview:** `zoho-time recurring [--month=YYYY-MM]`. Without `--month` it takes the latest month that's over (this one on its last day, otherwise last month).
+2. **Ask for confirmation.** Show the month, the date and each numbered entry (project, task, hours, notes, and whether it's due, already logged or can't be logged). Point out any marked "(new Zoho task)": saving creates that task on the client's project, so check its name for typos, and ask whether to save the due ones. The user may leave some out.
+3. **Only after a clear yes**, run it again with `--confirm`, adding `--skip=<numbers>` for any the user left out, and report the saved entry IDs. A **no** means that month isn't logged: don't ask again.
+
+An entry that's already in Zoho for the month is never saved twice, so running it again is safe. If an entry can't be logged (no such project), say which and how to fix it: correct the project name in the config, or create the project in Zoho Invoice.
+
 ## Other commands
 
 - `zoho-time tasks <repo>`: tasks on the repo's Zoho project, with their IDs.

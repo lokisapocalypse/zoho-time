@@ -6,5 +6,13 @@
     "billable_topics": ["client-bluebird"],
     "projects": {
         "example-repo": "Zoho project name, when it isn't the repository's name"
-    }
+    },
+    "recurring": [
+        {
+            "project": "Harbor Family Clinic",
+            "task": "Hosting Fee",
+            "time": "0:06",
+            "notes": "Monthly hosting"
+        }
+    ]
 }
