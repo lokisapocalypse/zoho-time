@@ -11,7 +11,7 @@ What it does:
 - **Keeps invoices clean.** Clients see task names and notes, so nothing sent to Zoho includes the repo name, issue number or GitHub link. Notes default to the issue's title, and `--notes` sets friendlier wording.
 - **Previews before saving.** Nothing is written without `--confirm`. The Claude Code skill shows you the preview and only saves after you say yes.
 - **Rounds up to the quarter hour** (1h 05m → 1.25h, 40m → 0.75h), and refuses dates in the future.
-- **Logs monthly entries too.** Fixed blocks billed every month (hosting, maintenance) are listed in the config, and `zoho-time recurring` logs the month's batch, dated its last day, with each entry's hours exactly as listed. An entry already in Zoho for that month is never logged again, and a task the project doesn't have yet is created.
+- **Logs monthly entries too.** Fixed blocks billed every month (hosting, maintenance) are listed in the config, and `zoho-time recurring` logs the month's batch, dated its first day, with each entry's hours exactly as listed. An entry already in Zoho for that month is never logged again, and a task the project doesn't have yet is created.
 
 ## Usage
 
@@ -30,7 +30,7 @@ zoho-time auth
 
 `--task` takes an existing task's name (ignoring case) or its ID, as listed by `zoho-time tasks <repo>`. `<time>` can be `1h05m`, `40m`, `1.25h`, `1.5` (hours) or `1:05`. An issue in another owner's repo is written `owner/repo#n`.
 
-`recurring` defaults to the latest month that's over: this month on its last day, otherwise last month. Its preview numbers the entries and says whether each is due (marking any whose task will be created), already logged, or can't be logged (no such project); `--skip` leaves out entries by number.
+`recurring` defaults to the current month; `--month` logs an earlier one. Its preview numbers the entries and says whether each is due (marking any whose task will be created), already logged, or can't be logged (no such project); `--skip` leaves out entries by number.
 
 Exit codes: 0 ok, 1 error (including a recurring entry that can't be logged), 2 bad arguments, 3 the repo isn't billable.
 

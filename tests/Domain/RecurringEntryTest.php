@@ -40,34 +40,30 @@ final class RecurringEntryTest extends TestCase
     }
 
     /**
-     * Check that a month's entry is dated its last day, including in February.
+     * Check that a month's entry is dated its first day.
      *
      * @return void
      */
-    public function testEntriesAreDatedTheMonthsLastDay(): void
+    public function testEntriesAreDatedTheMonthsFirstDay(): void
     {
-        $this->assertSame('2026-09-30', RecurringEntry::dateFor(new DateTimeImmutable('2026-09-12'))->format('Y-m-d'));
-        $this->assertSame('2028-02-29', RecurringEntry::dateFor(new DateTimeImmutable('2028-02-01'))->format('Y-m-d'));
+        $this->assertSame('2026-09-01', RecurringEntry::dateFor(new DateTimeImmutable('2026-09-12'))->format('Y-m-d'));
+        $this->assertSame('2026-11-01', RecurringEntry::dateFor(new DateTimeImmutable('2026-11-30'))->format('Y-m-d'));
     }
 
     /**
-     * Check that the latest due month is this one on its last day, and last month before that.
+     * Check that the month billed by default is the current one, from its first day.
      *
      * @return void
      */
-    public function testLatestDueMonthIsThisOneOnlyOnItsLastDay(): void
+    public function testCurrentMonthIsBilledFromItsFirstDay(): void
     {
         $this->assertSame(
+            '2026-11-01',
+            RecurringEntry::currentMonth(new DateTimeImmutable('2026-11-01 09:00'))->format('Y-m-d')
+        );
+        $this->assertSame(
             '2026-10-01',
-            RecurringEntry::latestDueMonth(new DateTimeImmutable('2026-10-31 09:00'))->format('Y-m-d')
-        );
-        $this->assertSame(
-            '2026-09-01',
-            RecurringEntry::latestDueMonth(new DateTimeImmutable('2026-10-30'))->format('Y-m-d')
-        );
-        $this->assertSame(
-            '2026-12-01',
-            RecurringEntry::latestDueMonth(new DateTimeImmutable('2027-01-05'))->format('Y-m-d')
+            RecurringEntry::currentMonth(new DateTimeImmutable('2026-10-31'))->format('Y-m-d')
         );
     }
 
@@ -86,27 +82,27 @@ final class RecurringEntryTest extends TestCase
         );
 
         $this->assertSame(6, $entry->duration()->minutes());
-        $this->assertSame('2026-09-30', $entry->date()->format('Y-m-d'));
+        $this->assertSame('2026-09-01', $entry->date()->format('Y-m-d'));
         $this->assertSame('Tier 1 Support Services', $entry->notes());
         $this->assertSame($this->task, $entry->task());
         $this->assertNull($entry->id());
     }
 
     /**
-     * Check that a month that isn't over yet is refused.
+     * Check that a month that hasn't started yet is refused.
      *
      * @return void
      */
     public function testMonthThatIsNotOverIsRefused(): void
     {
         $this->expectException(DomainException::class);
-        $this->expectExceptionMessage("October 2026's recurring entries aren't due until 2026-10-31.");
+        $this->expectExceptionMessage("November 2026's recurring entries aren't due until 2026-11-01.");
 
         $this->hosting->entryFor(
             $this->task,
             'u1',
-            new DateTimeImmutable('2026-10-01'),
-            new DateTimeImmutable('2026-10-30')
+            new DateTimeImmutable('2026-11-01'),
+            new DateTimeImmutable('2026-10-31')
         );
     }
 
@@ -117,7 +113,7 @@ final class RecurringEntryTest extends TestCase
      */
     public function testAnyEntryOnTheTaskCountsAsLogged(): void
     {
-        $date = new DateTimeImmutable('2026-09-30');
+        $date = new DateTimeImmutable('2026-09-01');
         $other = new Task('t2', $this->task->project(), 'Site Backup');
         $onOther = new TimeEntry('e1', $other, 'u1', $date, new Duration(30), 'Tier 1 Support Services');
         $onTask = new TimeEntry('e2', $this->task, 'u1', $date, new Duration(15), 'Hosting');
