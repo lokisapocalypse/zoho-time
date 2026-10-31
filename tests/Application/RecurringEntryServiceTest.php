@@ -77,7 +77,7 @@ final class RecurringEntryServiceTest extends TestCase
             [RecurringStatus::Due, RecurringStatus::Due, RecurringStatus::Due, RecurringStatus::Unavailable],
             $this->statuses($prepared)
         );
-        $this->assertSame('2026-09-30', $prepared[1]->entry()?->date()->format('Y-m-d'));
+        $this->assertSame('2026-09-01', $prepared[1]->entry()?->date()->format('Y-m-d'));
         $this->assertSame(6, $prepared[1]->entry()?->duration()->minutes());
         $this->assertFalse($prepared[1]->createsTask());
         $this->assertTrue($prepared[2]->createsTask());
@@ -121,7 +121,7 @@ final class RecurringEntryServiceTest extends TestCase
             null,
             $this->backup,
             'u1',
-            new DateTimeImmutable('2026-09-30'),
+            new DateTimeImmutable('2026-09-01'),
             new Duration(30),
             'Tier 3 Support Services'
         );
@@ -203,7 +203,7 @@ final class RecurringEntryServiceTest extends TestCase
     }
 
     /**
-     * Check that a month that isn't over yet is refused.
+     * Check that a month that hasn't started yet is refused.
      *
      * @return void
      */

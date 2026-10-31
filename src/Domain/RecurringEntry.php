@@ -9,7 +9,7 @@ use DomainException;
 use InvalidArgumentException;
 
 /**
- * The same time entry every month, such as a maintenance or hosting block, dated the month's last day.
+ * The same time entry every month, such as a maintenance or hosting block, dated the month's first day.
  */
 final class RecurringEntry
 {
@@ -52,7 +52,7 @@ final class RecurringEntry
     }
 
     /**
-     * Get the day a month's entry is dated: the month's last day.
+     * Get the day a month's entry is dated: the month's first day, so it can be billed as the month starts.
      *
      * @param DateTimeImmutable $month Any day in the month.
      *
@@ -60,32 +60,30 @@ final class RecurringEntry
      */
     public static function dateFor(DateTimeImmutable $month): DateTimeImmutable
     {
-        return $month->modify('last day of this month')->setTime(0, 0);
+        return $month->modify('first day of this month')->setTime(0, 0);
     }
 
     /**
-     * Get the latest month that's due by today: this month on its last day, otherwise last month.
+     * Get the month to bill by default: the current one, which is due from its first day.
      *
      * @param DateTimeImmutable $today Today's date.
      *
      * @return DateTimeImmutable The month's first day.
      */
-    public static function latestDueMonth(DateTimeImmutable $today): DateTimeImmutable
+    public static function currentMonth(DateTimeImmutable $today): DateTimeImmutable
     {
-        $month = $today->modify('first day of this month')->setTime(0, 0);
-
-        return self::dateFor($month) <= $today->setTime(0, 0) ? $month : $month->modify('-1 month');
+        return self::dateFor($today);
     }
 
     /**
-     * Refuse a month that isn't over yet: its entries are dated its last day.
+     * Refuse a month that hasn't started yet: its entries are dated its first day.
      *
      * @param DateTimeImmutable $month Any day in the month being billed.
      * @param DateTimeImmutable $today Today's date.
      *
      * @return void
      *
-     * @throws DomainException When the month's last day is after today.
+     * @throws DomainException When the month's first day is after today.
      */
     public static function assertDue(DateTimeImmutable $month, DateTimeImmutable $today): void
     {
@@ -108,7 +106,7 @@ final class RecurringEntry
      *
      * @return TimeEntry
      *
-     * @throws DomainException When the month isn't over yet.
+     * @throws DomainException When the month hasn't started yet.
      */
     public function entryFor(Task $task, string $userId, DateTimeImmutable $month, DateTimeImmutable $today): TimeEntry
     {
@@ -135,7 +133,7 @@ final class RecurringEntry
      * Any entry on the same task counts, whatever its hours or notes, so a month is never billed twice.
      *
      * @param Task            $task    The entry's task.
-     * @param list<TimeEntry> $entries Entries logged on the project on the month's last day.
+     * @param list<TimeEntry> $entries Entries logged on the project on the month's first day.
      *
      * @return TimeEntry|null
      */

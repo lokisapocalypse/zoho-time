@@ -46,9 +46,9 @@ final class Application
               --notes is the client-facing description; it defaults to the issue's title.
           zoho-time recurring [--month=YYYY-MM] [--skip=1,3] [--confirm]
               Preview (or, with --confirm, save) the month's recurring entries from the config,
-              dated the month's last day, with their hours exactly as configured. Entries already
-              in Zoho are never logged again; a task the project doesn't have yet is created. --month defaults to the latest month that's over
-              (this one, on its last day). --skip leaves out entries by their number.
+              dated the month's first day, with their hours exactly as configured. Entries already
+              in Zoho are never logged again; a task the project doesn't have yet is created.
+              --month defaults to the current month. --skip leaves out entries by their number.
           zoho-time tasks <repo>                  List the tasks on the repo's Zoho project.
           zoho-time entries [--date=YYYY-MM-DD]   List the time entries logged on a day.
           zoho-time delete <entry-id> [--confirm] Preview (or, with --confirm, do) a deletion.
@@ -487,7 +487,7 @@ final class Application
     }
 
     /**
-     * Read --month, defaulting to the latest month whose recurring entries are due.
+     * Read --month, defaulting to the current month.
      *
      * @param array<string, string|true> $options The options.
      *
@@ -498,7 +498,7 @@ final class Application
     private function month(array $options): DateTimeImmutable
     {
         if (!isset($options['month'])) {
-            return RecurringEntry::latestDueMonth($this->today);
+            return RecurringEntry::currentMonth($this->today);
         }
 
         $month = DateTimeImmutable::createFromFormat('!Y-m', (string) $options['month']);

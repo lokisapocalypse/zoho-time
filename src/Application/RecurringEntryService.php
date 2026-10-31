@@ -56,7 +56,7 @@ final class RecurringEntryService
      *
      * @return list<PreparedRecurringEntry>
      *
-     * @throws DomainException When the month isn't over yet.
+     * @throws DomainException When the month hasn't started yet.
      * @throws InvalidArgumentException When a number to skip isn't one of the entries.
      */
     public function prepare(DateTimeImmutable $month, DateTimeImmutable $today, array $skip = []): array
@@ -128,7 +128,7 @@ final class RecurringEntryService
      *
      * @return list<PreparedRecurringEntry> Every entry, with the ones saved now marked Saved.
      *
-     * @throws DomainException When the month isn't over yet.
+     * @throws DomainException When the month hasn't started yet.
      * @throws InvalidArgumentException When a number to skip isn't one of the entries.
      * @throws \RuntimeException When Zoho refuses an entry; the ones before it stay saved.
      */

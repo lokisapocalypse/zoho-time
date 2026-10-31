@@ -31,9 +31,9 @@ Never pass `--confirm` without that yes, even when asked to log time in the same
 
 ## Recurring monthly entries
 
-Fixed blocks billed every month (hosting, maintenance, backups) are listed under `recurring` in the config, each on a task with its exact hours. They're dated the month's last day and aren't rounded.
+Fixed blocks billed every month (hosting, maintenance, backups) are listed under `recurring` in the config, each on a task with its exact hours. They're dated the month's first day, so a month is billed as it starts, and aren't rounded.
 
-1. **Preview:** `zoho-time recurring [--month=YYYY-MM]`. Without `--month` it takes the latest month that's over (this one on its last day, otherwise last month).
+1. **Preview:** `zoho-time recurring [--month=YYYY-MM]`. Without `--month` it takes the current month; `--month` logs an earlier one that was missed.
 2. **Ask for confirmation.** Show the month, the date and each numbered entry (project, task, hours, notes, and whether it's due, already logged or can't be logged). Point out any marked "(new Zoho task)": saving creates that task on the client's project, so check its name for typos, and ask whether to save the due ones. The user may leave some out.
 3. **Only after a clear yes**, run it again with `--confirm`, adding `--skip=<numbers>` for any the user left out, and report the saved entry IDs. A **no** means that month isn't logged: don't ask again.
 
