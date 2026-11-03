@@ -36,6 +36,7 @@ Fixed blocks billed every month (hosting, maintenance, backups) are listed under
 1. **Preview:** `zoho-time recurring [--month=YYYY-MM]`. Without `--month` it takes the current month; `--month` logs an earlier one that was missed.
 2. **Ask for confirmation.** Show the month, the date and each numbered entry (project, task, hours, notes, and whether it's due, already logged or can't be logged). Point out any marked "(new Zoho task)": saving creates that task on the client's project, so check its name for typos, and ask whether to save the due ones. The user may leave some out.
 3. **Only after a clear yes**, run it again with `--confirm`, adding `--skip=<numbers>` for any the user left out, and report the saved entry IDs. A **no** means that month isn't logged: don't ask again.
+4. **Close the month's reminder issue.** Once every due entry is saved or left out by the user, close the open "Log recurring time: <Month YYYY>" issue in `Fusani-Applications/operations` with a comment giving the count, date and total hours (`gh issue close <n> --repo Fusani-Applications/operations --comment "..."`). The yes in step 3 covers this, so say in step 2 that saving also closes the issue. Leave it open if any entry couldn't be logged.
 
 An entry that's already in Zoho for the month is never saved twice, so running it again is safe. If an entry can't be logged (no such project), say which and how to fix it: correct the project name in the config, or create the project in Zoho Invoice.
 
