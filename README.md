@@ -7,7 +7,7 @@ I bill clients through Zoho Invoice and track the work as GitHub issues. Copying
 What it does:
 
 - **Only bills client work.** A repo is billable if it's listed in the config or has one of the configured topics (e.g. `client-bluebird`). Anything else is refused with exit code 3.
-- **One Zoho project per repo, one task per issue.** The task is named after the issue's title and created the first time time is logged to it. `--task` puts the time on an existing task instead (a retainer, say), and never creates one.
+- **One Zoho project per repo, one task per issue.** The task is named after the issue's title and created the first time time is logged to it. `--task` puts the time on an existing task instead (a retainer, say), and never creates one. `--task-name` names the new task instead, for a title that's too long for Zoho (at most 99 characters) or not right for an invoice; a title that's too long is refused at the preview rather than cut off.
 - **Keeps invoices clean.** Clients see task names and notes, so nothing sent to Zoho includes the repo name, issue number or GitHub link. Notes default to the issue's title, and `--notes` sets friendlier wording.
 - **Previews before saving.** Nothing is written without `--confirm`. The Claude Code skill shows you the preview and only saves after you say yes.
 - **Rounds up to the quarter hour** (1h 05m → 1.25h, 40m → 0.75h), and refuses dates in the future.
@@ -19,6 +19,7 @@ What it does:
 zoho-time log bluebird-www#39 1h05m [--date=2026-10-01]            # preview
 zoho-time log bluebird-www#39 1h05m [--date=2026-10-01] --confirm  # save
 zoho-time log bluebird-www#39 30m --task="Monthly maintenance"      # on an existing task
+zoho-time log bluebird-www#39 1h --task-name="Database backups"     # name the issue's new task
 zoho-time log bluebird-www#39 1h --notes="Set up nightly backups"   # client-facing notes
 zoho-time recurring [--month=2026-10] [--skip=2,5] [--confirm]      # the month's recurring entries
 zoho-time tasks bluebird-www
@@ -28,7 +29,7 @@ zoho-time projects
 zoho-time auth
 ```
 
-`--task` takes an existing task's name (ignoring case) or its ID, as listed by `zoho-time tasks <repo>`. `<time>` can be `1h05m`, `40m`, `1.25h`, `1.5` (hours) or `1:05`. An issue in another owner's repo is written `owner/repo#n`.
+`--task` takes an existing task's name (ignoring case) or its ID, as listed by `zoho-time tasks <repo>`. `--task-name` can't be combined with it, and later entries on the same issue need the same `--task-name` to land on its task. `<time>` can be `1h05m`, `40m`, `1.25h`, `1.5` (hours) or `1:05`. An issue in another owner's repo is written `owner/repo#n`.
 
 `recurring` defaults to the current month; `--month` logs an earlier one. Its preview numbers the entries and says whether each is due (marking any whose task will be created), already logged, or can't be logged (no such project); `--skip` leaves out entries by number.
 
@@ -80,7 +81,7 @@ CI (`.github/workflows/ci.yml`) runs both on every pull request and on pushes to
 
 The code is layered, with the business rules on the domain objects rather than in services:
 
-- **`src/Domain`:** `Duration` parses and rounds time, `BillingPolicy` decides what's billable, `Task::forIssue()` names a task, `TimeEntry` refuses future dates and supplies default notes, and `RecurringEntry` dates a month's entry, refuses months that aren't over and spots one already logged. The repository interfaces live here too.
+- **`src/Domain`:** `Duration` parses and rounds time, `BillingPolicy` decides what's billable, `Task::forIssue()` names a task and refuses names too long for Zoho, `TimeEntry` refuses future dates and supplies default notes, and `RecurringEntry` dates a month's entry, refuses months that aren't over and spots one already logged. The repository interfaces live here too.
 - **`src/Application`:** `TimeEntryService` and `RecurringEntryService` each run a use case: it loads the issue, project and task through repositories, asks the domain objects to build the entry, and saves it only when confirmed. It holds no rules of its own.
 - **`src/Infrastructure`:** the Zoho API client and OAuth token refresh, GitHub via the `gh` CLI, and the macOS Keychain. Each sits behind an interface, so the tests swap in fakes (`tests/Fakes`).
 

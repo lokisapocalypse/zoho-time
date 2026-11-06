@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace ZohoTime\Tests\Application;
 
 use DateTimeImmutable;
+use InvalidArgumentException;
 use PHPUnit\Framework\TestCase;
 use ZohoTime\Application\LogTimeRequest;
 use ZohoTime\Application\TimeEntryService;
@@ -14,6 +15,7 @@ use ZohoTime\Domain\Issue;
 use ZohoTime\Domain\NotBillableException;
 use ZohoTime\Domain\Project;
 use ZohoTime\Domain\Task;
+use ZohoTime\Domain\TaskNameTooLongException;
 use ZohoTime\Domain\TaskNotFoundException;
 use ZohoTime\Tests\Fakes\FakeIssueRepository;
 use ZohoTime\Tests\Fakes\FakeProjectRepository;
@@ -45,6 +47,10 @@ final class TimeEntryServiceTest extends TestCase
         $issues = new FakeIssueRepository();
         $issues->add(
             new Issue('acme-studio', 'bluebird-www', 39, 'Nightly database backups', 'https://example.test/39'),
+            ['client-bluebird']
+        );
+        $issues->add(
+            new Issue('acme-studio', 'bluebird-www', 40, str_repeat('Long title ', 10), 'https://example.test/40'),
             ['client-bluebird']
         );
         $issues->add(new Issue('acme-studio', 'studio-www', 54, 'Blog', 'https://example.test/54'), []);
@@ -232,5 +238,67 @@ final class TimeEntryServiceTest extends TestCase
 
         $this->assertSame('Set up nightly integrity checks', $saved->entry()->notes());
         $this->assertSame('Nightly database backups', $saved->entry()->task()->name());
+    }
+
+    /**
+     * Check that an issue whose title is too long for a Zoho task is refused at the preview.
+     *
+     * @return void
+     */
+    public function testRefusesATitleTooLongForATaskAtThePreview(): void
+    {
+        $this->expectException(TaskNameTooLongException::class);
+
+        $this->service->prepare(new LogTimeRequest('bluebird-www#40', new Duration(30), $this->today), $this->today);
+    }
+
+    /**
+     * Check that a given task name creates the issue's task under that name, notes still from the title.
+     *
+     * @return void
+     */
+    public function testCreatesTheTaskUnderAGivenName(): void
+    {
+        $saved = $this->service->log(
+            new LogTimeRequest('bluebird-www#40', new Duration(30), $this->today, null, null, 'Donation form updates'),
+            $this->today
+        );
+
+        $this->assertTrue($saved->createsTask());
+        $this->assertSame('Donation form updates', $saved->entry()->task()->name());
+        $this->assertSame(
+            ['Donation form updates'],
+            array_map(static fn (Task $task): string => $task->name(), $this->tasks->saved)
+        );
+    }
+
+    /**
+     * Check that a given task name reuses the task already saved under it.
+     *
+     * @return void
+     */
+    public function testReusesTheTaskSavedUnderAGivenName(): void
+    {
+        $this->tasks->save(new Task(null, $this->site, 'Donation form updates'));
+
+        $prepared = $this->service->prepare(
+            new LogTimeRequest('bluebird-www#40', new Duration(30), $this->today, null, null, 'Donation form updates'),
+            $this->today
+        );
+
+        $this->assertFalse($prepared->createsTask());
+        $this->assertSame('t1', $prepared->entry()->task()->id());
+    }
+
+    /**
+     * Check that an existing task and a new task name can't both be given.
+     *
+     * @return void
+     */
+    public function testRefusesAnExistingTaskAndATaskNameTogether(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+
+        new LogTimeRequest('bluebird-www#40', new Duration(30), $this->today, 'Maintenance', null, 'Donation form');
     }
 }

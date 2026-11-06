@@ -11,6 +11,9 @@ use LogicException;
  */
 final class Task
 {
+    /** Zoho refuses task names of 100 characters or more. */
+    public const MAX_NAME_LENGTH = 99;
+
     private ?string $id;
 
     private readonly Project $project;
@@ -32,16 +35,31 @@ final class Task
     }
 
     /**
-     * Start a new, unsaved task for an issue on its repository's project.
+     * Start a new, unsaved task for an issue on its repository's project, named by its title unless named otherwise.
      *
-     * @param Project $project The repository's Zoho project.
-     * @param Issue   $issue   The issue being billed.
+     * @param Project     $project The repository's Zoho project.
+     * @param Issue       $issue   The issue being billed.
+     * @param string|null $name    A name for the task, or null for the issue's title.
      *
      * @return self
+     *
+     * @throws TaskNameTooLongException When the name is longer than Zoho accepts.
      */
-    public static function forIssue(Project $project, Issue $issue): self
+    public static function forIssue(Project $project, Issue $issue, ?string $name = null): self
     {
-        return new self(null, $project, $issue->taskName());
+        $name ??= $issue->taskName();
+        $length = mb_strlen($name);
+
+        if ($length > self::MAX_NAME_LENGTH) {
+            throw new TaskNameTooLongException(sprintf(
+                'Zoho task names can be at most %d characters, and "%s" is %d.',
+                self::MAX_NAME_LENGTH,
+                $name,
+                $length
+            ));
+        }
+
+        return new self(null, $project, $name);
     }
 
     /**
