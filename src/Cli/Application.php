@@ -18,6 +18,7 @@ use ZohoTime\Application\TimeEntryService;
 use ZohoTime\Domain\Duration;
 use ZohoTime\Domain\NotBillableException;
 use ZohoTime\Domain\RecurringEntry;
+use ZohoTime\Domain\TaskNameTooLongException;
 use ZohoTime\Domain\TimeEntry;
 use ZohoTime\Infrastructure\CredentialStore;
 use ZohoTime\Infrastructure\ZohoOAuth;
@@ -39,10 +40,13 @@ final class Application
 
     private const USAGE = <<<'TXT'
         Usage:
-          zoho-time log <repo#issue> <time> [--date=YYYY-MM-DD] [--task=<name or ID>] [--notes=<text>] [--confirm]
+          zoho-time log <repo#issue> <time> [--date=YYYY-MM-DD] [--task=<name or ID> | --task-name=<name>]
+                        [--notes=<text>] [--confirm]
               Preview (or, with --confirm, save) a billable time entry on the issue's task.
               <time> is e.g. 1h05m, 40m, 1.25h or 1:05; it's rounded up to the quarter hour.
               --date defaults to today. --task logs on an existing task instead (never created).
+              --task-name names the issue's task when its title is too long (at most 99 characters)
+              or not right for an invoice.
               --notes is the client-facing description; it defaults to the issue's title.
           zoho-time recurring [--month=YYYY-MM] [--skip=1,3] [--confirm]
               Preview (or, with --confirm, save) the month's recurring entries from the config,
@@ -133,6 +137,13 @@ final class Application
             $this->error($exception->getMessage());
 
             return self::EXIT_NOT_BILLABLE;
+        } catch (TaskNameTooLongException $exception) {
+            $this->error(
+                $exception->getMessage()
+                . ' Name the task with --task-name="<name>", or log on an existing task with --task.'
+            );
+
+            return self::EXIT_USAGE;
         } catch (InvalidArgumentException $exception) {
             $this->error($exception->getMessage());
 
@@ -148,7 +159,7 @@ final class Application
      * Preview or save a time entry on an issue.
      *
      * @param list<string>               $positional The issue reference and the time.
-     * @param array<string, string|true> $options    --date, --task, --notes and --confirm.
+     * @param array<string, string|true> $options    --date, --task, --task-name, --notes and --confirm.
      *
      * @return int
      *
@@ -165,7 +176,8 @@ final class Application
             Duration::parse($positional[1]),
             $this->date($options),
             $this->task($options),
-            $this->notes($options)
+            $this->notes($options),
+            $this->taskName($options)
         );
         $service = ($this->service)();
 
@@ -552,6 +564,30 @@ final class Application
         }
 
         return trim($options['task']);
+    }
+
+    /**
+     * Read --task-name, the name for the issue's own task, if given.
+     *
+     * @param array<string, string|true> $options The options.
+     *
+     * @return string|null
+     *
+     * @throws InvalidArgumentException When --task-name has no value.
+     */
+    private function taskName(array $options): ?string
+    {
+        if (!isset($options['task-name'])) {
+            return null;
+        }
+
+        if ($options['task-name'] === true || trim($options['task-name']) === '') {
+            throw new InvalidArgumentException(
+                '--task-name needs a name, e.g. --task-name="Update the donation form".'
+            );
+        }
+
+        return trim($options['task-name']);
     }
 
     /**

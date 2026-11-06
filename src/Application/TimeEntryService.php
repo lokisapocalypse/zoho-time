@@ -63,6 +63,7 @@ final class TimeEntryService
      *
      * @throws \ZohoTime\Domain\NotBillableException When the issue's repository isn't billed.
      * @throws TaskNotFoundException When the existing task isn't on the project.
+     * @throws \ZohoTime\Domain\TaskNameTooLongException When the new task's name is too long for Zoho.
      * @throws \DomainException When the date is in the future or the notes are too long.
      * @throws \RuntimeException When GitHub or Zoho can't be read.
      */
@@ -72,8 +73,9 @@ final class TimeEntryService
         $this->policy->assertBillable($issue, $this->issues->topicsOf($issue));
 
         $project = $this->projects->findForRepository($issue->repository());
+        $taskName = $request->taskName() ?? $issue->taskName();
         $task = $request->existingTask() === null
-            ? $this->tasks->findByName($project, $issue->taskName()) ?? Task::forIssue($project, $issue)
+            ? $this->tasks->findByName($project, $taskName) ?? Task::forIssue($project, $issue, $taskName)
             : $this->existingTask($project, $request->existingTask());
         $entry = TimeEntry::forIssue(
             $issue,
@@ -104,6 +106,7 @@ final class TimeEntryService
      *
      * @throws \ZohoTime\Domain\NotBillableException When the issue's repository isn't billed.
      * @throws TaskNotFoundException When the existing task isn't on the project.
+     * @throws \ZohoTime\Domain\TaskNameTooLongException When the new task's name is too long for Zoho.
      * @throws \DomainException When the date is in the future or the notes are too long.
      * @throws \RuntimeException When GitHub or Zoho can't be read or written.
      */

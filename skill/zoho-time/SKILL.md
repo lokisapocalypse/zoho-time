@@ -18,12 +18,14 @@ The `zoho-time` CLI creates a billable time entry on the Zoho project for the is
 
 1. **Estimate the time worked** from what actually happened: the session's length, `git log --since=<session start> --format='%ad %s' --date=iso` in the repo, and the issue's timestamps (`gh issue view <n> --json createdAt,closedAt,comments`). If the work went through a pull request, add a suggested time for the user's review of it (about 5 minutes for a small change, 15–30 for a medium one, more if they tested it locally or there were review rounds). Pass the unrounded total (e.g. `1h05m`); the CLI rounds up to the quarter hour.
 2. **Pick the task.** Run `zoho-time tasks <repo>` to see the project's existing tasks. By default the time goes on the issue's own task (created if new). If an existing task looks like a better fit, suggest it and let the user choose; don't switch on your own. Examples: a retainer or maintenance task the work belongs to, or an earlier issue's task this one continues.
+
+   If the issue's title is longer than 99 characters, Zoho won't take it as a task name and the preview fails with "Zoho task names can be at most 99 characters". Suggest a shorter, client-friendly name and pass it with `--task-name`; never cut the title off. Do the same when the title is fine in length but wouldn't read well on an invoice, and let the user choose. Once logged under a `--task-name`, later entries on the same issue need the same `--task-name` to land on that task (check `zoho-time tasks <repo>`).
 3. **Word the notes.** They default to the issue's title. If the title is technical or internal, suggest client-friendly wording that says what was done for the client, e.g. "Back up the site's database every night and keep copies offsite" rather than "Nightly database backups with offsite copies". Plain language, no repo names, issue numbers, links or internal jargon; at most 500 characters.
 4. **Preview:**
    ```
-   zoho-time log <repo>#<issue> <time> [--date=YYYY-MM-DD] [--task="<existing task name or ID>"] [--notes="<client-facing text>"]
+   zoho-time log <repo>#<issue> <time> [--date=YYYY-MM-DD] [--task="<existing task name or ID>" | --task-name="<new task name>"] [--notes="<client-facing text>"]
    ```
-   `--task` only uses an existing task; it fails rather than creating one.
+   `--task` only uses an existing task; it fails rather than creating one. `--task-name` names the issue's own task (created if new) and can't be combined with `--task`.
 5. **Ask for confirmation.** Show the issue (e.g. `bluebird-www #39`), the task name (and whether it's new or existing), the Zoho project, the date, the hours and the notes from the preview. Say how the hours were estimated so they can be adjusted, with the user's review time on its own line for them to confirm or correct, and mention any "Warning: this task already has … logged that day" line. Ask whether to save it.
 6. **Only after a clear yes** in this conversation, run the same command with `--confirm` and report the saved entry ID. If the hours, date, task or notes are adjusted, preview again and re-confirm. A **no** means the issue isn't billed: skip it and don't ask again.
 
