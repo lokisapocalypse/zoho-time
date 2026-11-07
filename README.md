@@ -37,7 +37,7 @@ Exit codes: 0 ok, 1 error (including a recurring entry that can't be logged), 2 
 
 ## Setup
 
-Requires PHP 8.3+ with curl, Composer, and an authenticated `gh`.
+Requires PHP 8.4+ with curl, Composer, and an authenticated `gh`.
 
 1. **Install:**
    ```
