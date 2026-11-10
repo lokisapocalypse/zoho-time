@@ -80,11 +80,69 @@ final class TimeEntry
         DateTimeImmutable $today,
         ?string $notes = null
     ): self {
+        $notes = $notes === null || trim($notes) === '' ? $issue->title() : $notes;
+
+        return self::billed($task, $userId, $date, $worked, $today, $notes);
+    }
+
+    /**
+     * Bill time worked on a project's task with no issue behind it, with hours rounded up to the quarter hour.
+     *
+     * There's no issue title to fall back on, so the client-facing notes are required.
+     *
+     * @param Task              $task   The Zoho task to log on.
+     * @param string            $userId Zoho ID of the user who did the work.
+     * @param DateTimeImmutable $date   The day the work was done.
+     * @param Duration          $worked Time actually spent, before rounding.
+     * @param DateTimeImmutable $today  Today's date, so future days can be refused.
+     * @param string            $notes  Client-facing notes.
+     *
+     * @return self
+     *
+     * @throws DomainException When the date is in the future, or the notes are empty or too long for Zoho.
+     */
+    public static function forProject(
+        Task $task,
+        string $userId,
+        DateTimeImmutable $date,
+        Duration $worked,
+        DateTimeImmutable $today,
+        string $notes
+    ): self {
+        if (trim($notes) === '') {
+            throw new DomainException('Time logged without an issue needs notes for the client.');
+        }
+
+        return self::billed($task, $userId, $date, $worked, $today, $notes);
+    }
+
+    /**
+     * Build an unsaved, rounded entry after checking its date and notes.
+     *
+     * @param Task              $task   The Zoho task to log on.
+     * @param string            $userId Zoho ID of the user who did the work.
+     * @param DateTimeImmutable $date   The day the work was done.
+     * @param Duration          $worked Time actually spent, before rounding.
+     * @param DateTimeImmutable $today  Today's date, so future days can be refused.
+     * @param string            $notes  Client-facing notes.
+     *
+     * @return self
+     *
+     * @throws DomainException When the date is in the future or the notes are too long for Zoho.
+     */
+    private static function billed(
+        Task $task,
+        string $userId,
+        DateTimeImmutable $date,
+        Duration $worked,
+        DateTimeImmutable $today,
+        string $notes
+    ): self {
         if ($date->setTime(0, 0) > $today->setTime(0, 0)) {
             throw new DomainException("Can't log time on {$date->format('Y-m-d')}: it's in the future.");
         }
 
-        $notes = $notes === null || trim($notes) === '' ? $issue->title() : trim($notes);
+        $notes = trim($notes);
 
         if (mb_strlen($notes) > self::MAX_NOTES_LENGTH) {
             throw new DomainException('Notes can be at most ' . self::MAX_NOTES_LENGTH . ' characters.');

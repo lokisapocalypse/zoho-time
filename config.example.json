@@ -4,6 +4,7 @@
     "github_owner": "acme-studio",
     "billable_repositories": ["harbor-clinic"],
     "billable_topics": ["client-bluebird"],
+    "billable_projects": ["Harbor Research"],
     "projects": {
         "example-repo": "Zoho project name, when it isn't the repository's name"
     },

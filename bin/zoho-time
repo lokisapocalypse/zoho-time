@@ -35,7 +35,11 @@ $application = new Application(
             new ZohoProjectRepository($zoho, $settings),
             new ZohoTaskRepository($zoho),
             new ZohoTimeEntryRepository($zoho),
-            new BillingPolicy($settings->billableRepositories(), $settings->billableTopics())
+            new BillingPolicy(
+                $settings->billableRepositories(),
+                $settings->billableTopics(),
+                $settings->billableProjects()
+            )
         );
     },
     static function () use ($config, $credentials, $http): RecurringEntryService {

@@ -16,7 +16,7 @@ use ZohoTime\Domain\TimeEntry;
 use ZohoTime\Domain\TimeEntryRepository;
 
 /**
- * Prepares, saves, lists and deletes time entries for issues.
+ * Prepares, saves, lists and deletes time entries, for issues or on a project's task directly.
  */
 final class TimeEntryService
 {
@@ -125,6 +125,85 @@ final class TimeEntryService
     }
 
     /**
+     * Work out an entry on a project's task, with no issue behind it, without saving anything.
+     *
+     * @param LogProjectTimeRequest $request What to log.
+     * @param DateTimeImmutable     $today   Today's date.
+     *
+     * @return PreparedEntry
+     *
+     * @throws \ZohoTime\Domain\NotBillableException When the project isn't listed as billable.
+     * @throws \ZohoTime\Domain\TaskNameTooLongException When the new task's name is too long for Zoho.
+     * @throws \DomainException When the date is in the future, or the notes are empty or too long.
+     * @throws \RuntimeException When the project doesn't exist or Zoho can't be read.
+     */
+    public function prepareForProject(LogProjectTimeRequest $request, DateTimeImmutable $today): PreparedEntry
+    {
+        $project = $this->activeProject($request->projectName());
+        $this->policy->assertProjectBillable($project);
+
+        $task = $this->tasks->findByNameOrId($project, $request->task())
+            ?? Task::named($project, $request->task());
+        $entry = TimeEntry::forProject(
+            $task,
+            $this->projects->currentUserIdOn($project),
+            $request->date(),
+            $request->worked(),
+            $today,
+            $request->notes()
+        );
+
+        return new PreparedEntry(
+            null,
+            $entry,
+            $request->worked(),
+            !$task->isSaved(),
+            $task->isSaved() ? $this->entriesOnTask($task, $request->date()) : []
+        );
+    }
+
+    /**
+     * Save time on a project's task with no issue behind it, creating the task first when it's new.
+     *
+     * @param LogProjectTimeRequest $request What to log.
+     * @param DateTimeImmutable     $today   Today's date.
+     *
+     * @return PreparedEntry The saved entry.
+     *
+     * @throws \ZohoTime\Domain\NotBillableException When the project isn't listed as billable.
+     * @throws \ZohoTime\Domain\TaskNameTooLongException When the new task's name is too long for Zoho.
+     * @throws \DomainException When the date is in the future, or the notes are empty or too long.
+     * @throws \RuntimeException When the project doesn't exist, or Zoho can't be read or written.
+     */
+    public function logForProject(LogProjectTimeRequest $request, DateTimeImmutable $today): PreparedEntry
+    {
+        $prepared = $this->prepareForProject($request, $today);
+        $entry = $prepared->entry();
+
+        if (!$entry->task()->isSaved()) {
+            $this->tasks->save($entry->task());
+        }
+
+        $this->entries->save($entry);
+
+        return $prepared;
+    }
+
+    /**
+     * List the tasks on a Zoho project, found by name.
+     *
+     * @param string $name The project's name.
+     *
+     * @return list<Task>
+     *
+     * @throws \RuntimeException When there's no active project with that name.
+     */
+    public function tasksForProject(string $name): array
+    {
+        return $this->tasks->forProject($this->activeProject($name));
+    }
+
+    /**
      * List the time entries logged on a day.
      *
      * @param DateTimeImmutable $date The day.
@@ -184,6 +263,22 @@ final class TimeEntryService
     public function delete(string $id): void
     {
         $this->entries->delete($id);
+    }
+
+    /**
+     * Find an active project by name.
+     *
+     * @param string $name The project's name.
+     *
+     * @return Project
+     *
+     * @throws \RuntimeException When there's no active project with that name.
+     */
+    private function activeProject(string $name): Project
+    {
+        return $this->projects->findByName($name) ?? throw new \RuntimeException(
+            "Zoho has no active project named \"{$name}\"; list them with: zoho-time projects"
+        );
     }
 
     /**

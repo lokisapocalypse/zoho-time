@@ -8,6 +8,7 @@ use PHPUnit\Framework\TestCase;
 use ZohoTime\Domain\BillingPolicy;
 use ZohoTime\Domain\Issue;
 use ZohoTime\Domain\NotBillableException;
+use ZohoTime\Domain\Project;
 
 /**
  * Tests which repositories are billed.
@@ -23,7 +24,7 @@ final class BillingPolicyTest extends TestCase
      */
     protected function setUp(): void
     {
-        $this->policy = new BillingPolicy(['harbor-clinic'], ['client-bluebird']);
+        $this->policy = new BillingPolicy(['harbor-clinic'], ['client-bluebird'], ['Bluebird Research']);
     }
 
     /**
@@ -69,5 +70,29 @@ final class BillingPolicyTest extends TestCase
             new Issue('acme-studio', 'studio-www', 54, 'Something', 'https://github.com/x'),
             []
         );
+    }
+
+    /**
+     * Check that a listed project can be billed without an issue, ignoring case.
+     *
+     * @return void
+     */
+    public function testBillsListedProjectsWithoutAnIssue(): void
+    {
+        $this->policy->assertProjectBillable(new Project('p1', 'bluebird RESEARCH'));
+
+        $this->addToAssertionCount(1);
+    }
+
+    /**
+     * Check that any other project is refused without an issue.
+     *
+     * @return void
+     */
+    public function testRefusesOtherProjectsWithoutAnIssue(): void
+    {
+        $this->expectException(NotBillableException::class);
+
+        $this->policy->assertProjectBillable(new Project('p2', 'bluebird-www'));
     }
 }

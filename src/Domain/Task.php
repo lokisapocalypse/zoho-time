@@ -47,7 +47,21 @@ final class Task
      */
     public static function forIssue(Project $project, Issue $issue, ?string $name = null): self
     {
-        $name ??= $issue->taskName();
+        return self::named($project, $name ?? $issue->taskName());
+    }
+
+    /**
+     * Start a new, unsaved task with a given name on a project.
+     *
+     * @param Project $project The Zoho project.
+     * @param string  $name    The task's name.
+     *
+     * @return self
+     *
+     * @throws TaskNameTooLongException When the name is longer than Zoho accepts.
+     */
+    public static function named(Project $project, string $name): self
+    {
         $length = mb_strlen($name);
 
         if ($length > self::MAX_NAME_LENGTH) {

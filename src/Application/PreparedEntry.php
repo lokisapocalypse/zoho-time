@@ -13,7 +13,7 @@ use ZohoTime\Domain\TimeEntry;
  */
 final class PreparedEntry
 {
-    private readonly Issue $issue;
+    private readonly ?Issue $issue;
 
     private readonly TimeEntry $entry;
 
@@ -27,14 +27,14 @@ final class PreparedEntry
     /**
      * Create a prepared entry.
      *
-     * @param Issue           $issue          The issue being billed.
+     * @param Issue|null      $issue          The issue being billed, or null for time logged on a project directly.
      * @param TimeEntry       $entry          The entry to save.
      * @param Duration        $worked         Time worked before rounding.
      * @param bool            $createsTask    Whether saving also creates the issue's Zoho task.
      * @param list<TimeEntry> $sameDayEntries Entries already on the task that day.
      */
     public function __construct(
-        Issue $issue,
+        ?Issue $issue,
         TimeEntry $entry,
         Duration $worked,
         bool $createsTask,
@@ -48,11 +48,11 @@ final class PreparedEntry
     }
 
     /**
-     * Get the issue being billed.
+     * Get the issue being billed, or null for time logged on a project directly.
      *
-     * @return Issue
+     * @return Issue|null
      */
-    public function issue(): Issue
+    public function issue(): ?Issue
     {
         return $this->issue;
     }

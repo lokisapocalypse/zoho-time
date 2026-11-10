@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace ZohoTime\Domain;
 
 /**
- * Decides which repositories' issues are billed.
+ * Decides which repositories' issues, and which Zoho projects without issues, are billed.
  */
 final class BillingPolicy
 {
@@ -15,16 +15,40 @@ final class BillingPolicy
     /** @var list<string> */
     private readonly array $billableTopics;
 
+    /** @var list<string> */
+    private readonly array $billableProjects;
+
     /**
      * Create the policy.
      *
      * @param list<string> $billableRepositories Repositories that are always billed, e.g. ["harbor-clinic"].
      * @param list<string> $billableTopics       Repository topics that mark a client repo, e.g. ["client-bluebird"].
+     * @param list<string> $billableProjects     Zoho projects that time can be logged to without an issue.
      */
-    public function __construct(array $billableRepositories, array $billableTopics)
+    public function __construct(array $billableRepositories, array $billableTopics, array $billableProjects = [])
     {
         $this->billableRepositories = array_map('strtolower', $billableRepositories);
         $this->billableTopics = array_map('strtolower', $billableTopics);
+        $this->billableProjects = $billableProjects;
+    }
+
+    /**
+     * Refuse to log time without an issue on a project that isn't listed as billable.
+     *
+     * @param Project $project The Zoho project.
+     *
+     * @return void
+     *
+     * @throws NotBillableException When the project isn't listed.
+     */
+    public function assertProjectBillable(Project $project): void
+    {
+        if (!in_array(mb_strtolower($project->name()), array_map('mb_strtolower', $this->billableProjects), true)) {
+            throw new NotBillableException(
+                "\"{$project->name()}\" isn't billable without an issue: add it to billable_projects in the config"
+                . ($this->billableProjects === [] ? '.' : ' (now: ' . implode(', ', $this->billableProjects) . ').')
+            );
+        }
     }
 
     /**
