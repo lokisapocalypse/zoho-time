@@ -9,7 +9,7 @@ use RuntimeException;
 use ZohoTime\Infrastructure\Config;
 
 /**
- * Tests reading the recurring entries from the config file.
+ * Tests reading the recurring entries and billable projects from the config file.
  */
 final class ConfigTest extends TestCase
 {
@@ -79,6 +79,25 @@ final class ConfigTest extends TestCase
             ['project' => 'Bluebird Clinic', 'task' => 'Hosting Fee', 'time' => '0:06', 'notes' => 'Tier 1'],
             ['project' => 'Bluebird Clinic', 'task' => 'Site Backup', 'time' => '1:00'],
         ]);
+    }
+
+    /**
+     * Check that the projects billable without an issue are read, and default to none.
+     *
+     * @return void
+     */
+    public function testReadsBillableProjects(): void
+    {
+        $this->assertSame([], $this->load(null)->billableProjects());
+
+        file_put_contents($this->path, json_encode([
+            'data_center' => 'com',
+            'organization_id' => '1',
+            'github_owner' => 'acme-studio',
+            'billable_projects' => ['Bluebird Research'],
+        ]));
+
+        $this->assertSame(['Bluebird Research'], Config::load($this->path)->billableProjects());
     }
 
     /**

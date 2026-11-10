@@ -1,6 +1,6 @@
 ---
 name: zoho-time
-description: Log billable time on a GitHub issue to Zoho Invoice timesheets. Use when work on an issue in a billable client repo is done or the session ends, or when asked to log time, e.g. "log 3h on bluebird-www #39 today".
+description: Log billable time on a GitHub issue, or on a Zoho project directly for work with no issue, to Zoho Invoice timesheets. Use when work on an issue in a billable client repo is done or the session ends, or when asked to log time, e.g. "log 3h on bluebird-www #39 today".
 ---
 
 # Log time to Zoho Invoice
@@ -31,6 +31,15 @@ The `zoho-time` CLI creates a billable time entry on the Zoho project for the is
 
 Never pass `--confirm` without that yes, even when asked to log time in the same message. A request to log time is not a confirmation of the previewed entry.
 
+## Work without an issue
+
+Some billable work has no GitHub issue, such as a client whose repos are on their own account, or research before there's a repo. The user's instructions say which. Log it on the Zoho project directly; the project must be listed in `billable_projects` in the config, or the CLI exits 3.
+
+1. **Estimate the time** as above, from the session and any commits or PRs.
+2. **Pick the task.** `zoho-time tasks --project="<project>"` lists the project's tasks. Use the phase or kind of work (e.g. `Research`), with a client-friendly name; a name the project doesn't have yet is created on save.
+3. **Preview:** `zoho-time log-project "<project>" <time> --task="<task name or ID>" --notes="<client-facing text>" [--date=YYYY-MM-DD]`. `--task` and `--notes` are required.
+4. **Confirm** as above, showing the project, task (new or existing), date, hours and notes, and save with `--confirm` only after a clear yes.
+
 ## Recurring monthly entries
 
 Fixed blocks billed every month (hosting, maintenance, backups) are listed under `recurring` in the config, each on a task with its exact hours. They're dated the month's first day, so a month is billed as it starts, and aren't rounded.
@@ -44,7 +53,7 @@ An entry that's already in Zoho for the month is never saved twice, so running i
 
 ## Other commands
 
-- `zoho-time tasks <repo>`: tasks on the repo's Zoho project, with their IDs.
+- `zoho-time tasks <repo>`: tasks on the repo's Zoho project, with their IDs. `zoho-time tasks --project="<project>"` does the same for a project by name.
 - `zoho-time entries [--date=YYYY-MM-DD]`: entries logged on a day.
 - `zoho-time delete <entry-id>`: preview a deletion; add `--confirm` only after a yes.
 - `zoho-time projects`: active Zoho projects (each repo's project is named after the repo unless mapped in the config).

@@ -5,8 +5,11 @@ declare(strict_types=1);
 namespace ZohoTime\Tests\Application;
 
 use DateTimeImmutable;
+use DomainException;
 use InvalidArgumentException;
 use PHPUnit\Framework\TestCase;
+use RuntimeException;
+use ZohoTime\Application\LogProjectTimeRequest;
 use ZohoTime\Application\LogTimeRequest;
 use ZohoTime\Application\TimeEntryService;
 use ZohoTime\Domain\BillingPolicy;
@@ -37,6 +40,8 @@ final class TimeEntryServiceTest extends TestCase
 
     private Project $site;
 
+    private Project $research;
+
     /**
      * Set up a billable bluebird-www issue and an unbilled studio-www one.
      *
@@ -59,6 +64,9 @@ final class TimeEntryServiceTest extends TestCase
         $this->site = new Project('p1', 'bluebird-www');
         $projects->add($this->site);
         $projects->add(new Project('p2', 'studio-www'));
+        $this->research = new Project('p3', 'Bluebird Research');
+        $projects->add($this->research);
+        $projects->add(new Project('p4', 'Studio Internal'));
 
         $this->tasks = new FakeTaskRepository();
         $this->entries = new FakeTimeEntryRepository();
@@ -67,7 +75,7 @@ final class TimeEntryServiceTest extends TestCase
             $projects,
             $this->tasks,
             $this->entries,
-            new BillingPolicy(['harbor-clinic'], ['client-bluebird'])
+            new BillingPolicy(['harbor-clinic'], ['client-bluebird'], ['Bluebird Research'])
         );
         $this->today = new DateTimeImmutable('2026-10-01');
     }
@@ -300,5 +308,112 @@ final class TimeEntryServiceTest extends TestCase
         $this->expectException(InvalidArgumentException::class);
 
         new LogTimeRequest('bluebird-www#40', new Duration(30), $this->today, 'Maintenance', null, 'Donation form');
+    }
+
+    /**
+     * Check that time on a billable project, with no issue, is prepared on a new task without saving anything.
+     *
+     * @return void
+     */
+    public function testPreparesProjectTimeOnANewTask(): void
+    {
+        $prepared = $this->service->prepareForProject(
+            new LogProjectTimeRequest('bluebird research', new Duration(80), $this->today, 'Research', 'Compared options'),
+            $this->today
+        );
+
+        $this->assertNull($prepared->issue());
+        $this->assertTrue($prepared->createsTask());
+        $this->assertSame('Research', $prepared->entry()->task()->name());
+        $this->assertSame('Bluebird Research', $prepared->entry()->task()->project()->name());
+        $this->assertSame(90, $prepared->entry()->duration()->minutes());
+        $this->assertSame('Compared options', $prepared->entry()->notes());
+        $this->assertSame([], $this->tasks->saved);
+        $this->assertSame([], $this->entries->saved);
+    }
+
+    /**
+     * Check that logging project time creates the task once, then reuses it and warns about the earlier entry.
+     *
+     * @return void
+     */
+    public function testLogsProjectTimeAndReusesTheTask(): void
+    {
+        $request = new LogProjectTimeRequest('Bluebird Research', new Duration(30), $this->today, 'Research', 'Notes');
+        $saved = $this->service->logForProject($request, $this->today);
+
+        $this->assertSame('t1', $saved->entry()->task()->id());
+        $this->assertSame('e1', $saved->entry()->id());
+
+        $again = $this->service->prepareForProject($request, $this->today);
+
+        $this->assertFalse($again->createsTask());
+        $this->assertCount(1, $again->sameDayEntries());
+        $this->assertCount(1, $this->tasks->saved);
+    }
+
+    /**
+     * Check that a project not listed as billable is refused before anything is saved.
+     *
+     * @return void
+     */
+    public function testRefusesProjectTimeOnAProjectThatIsNotBillable(): void
+    {
+        $this->expectException(NotBillableException::class);
+
+        try {
+            $this->service->logForProject(
+                new LogProjectTimeRequest('Studio Internal', new Duration(30), $this->today, 'Research', 'Notes'),
+                $this->today
+            );
+        } finally {
+            $this->assertSame([], $this->tasks->saved);
+            $this->assertSame([], $this->entries->saved);
+        }
+    }
+
+    /**
+     * Check that a project Zoho doesn't have is reported, not created.
+     *
+     * @return void
+     */
+    public function testRefusesProjectTimeOnAnUnknownProject(): void
+    {
+        $this->expectException(RuntimeException::class);
+
+        $this->service->prepareForProject(
+            new LogProjectTimeRequest('Nobody', new Duration(30), $this->today, 'Research', 'Notes'),
+            $this->today
+        );
+    }
+
+    /**
+     * Check that project time without notes is refused, since there's no issue title to fall back on.
+     *
+     * @return void
+     */
+    public function testRefusesProjectTimeWithoutNotes(): void
+    {
+        $this->expectException(DomainException::class);
+
+        $this->service->prepareForProject(
+            new LogProjectTimeRequest('Bluebird Research', new Duration(30), $this->today, 'Research', ' '),
+            $this->today
+        );
+    }
+
+    /**
+     * Check that a project's tasks can be listed by the project's name.
+     *
+     * @return void
+     */
+    public function testListsAProjectsTasksByName(): void
+    {
+        $this->tasks->save(new Task(null, $this->research, 'Research'));
+
+        $tasks = $this->service->tasksForProject('Bluebird Research');
+
+        $this->assertCount(1, $tasks);
+        $this->assertSame('Research', $tasks[0]->name());
     }
 }

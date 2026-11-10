@@ -9,6 +9,7 @@ use DateTimeImmutable;
 use InvalidArgumentException;
 use RuntimeException;
 use Throwable;
+use ZohoTime\Application\LogProjectTimeRequest;
 use ZohoTime\Application\LogTimeRequest;
 use ZohoTime\Application\PreparedEntry;
 use ZohoTime\Application\PreparedRecurringEntry;
@@ -48,12 +49,18 @@ final class Application
               --task-name names the issue's task when its title is too long (at most 99 characters)
               or not right for an invoice.
               --notes is the client-facing description; it defaults to the issue's title.
+          zoho-time log-project "<project>" <time> --task=<name or ID> --notes=<text>
+                        [--date=YYYY-MM-DD] [--confirm]
+              Preview (or, with --confirm, save) a billable entry on a Zoho project's task, for work
+              with no GitHub issue. The project must be listed in billable_projects in the config.
+              A task the project doesn't have yet is created. --notes is required.
           zoho-time recurring [--month=YYYY-MM] [--skip=1,3] [--confirm]
               Preview (or, with --confirm, save) the month's recurring entries from the config,
               dated the month's first day, with their hours exactly as configured. Entries already
               in Zoho are never logged again; a task the project doesn't have yet is created.
               --month defaults to the current month. --skip leaves out entries by their number.
           zoho-time tasks <repo>                  List the tasks on the repo's Zoho project.
+          zoho-time tasks --project="<project>"   List the tasks on a Zoho project by name.
           zoho-time entries [--date=YYYY-MM-DD]   List the time entries logged on a day.
           zoho-time delete <entry-id> [--confirm] Preview (or, with --confirm, do) a deletion.
           zoho-time projects                      List the active Zoho projects.
@@ -124,9 +131,10 @@ final class Application
         try {
             return match ($command) {
                 'log' => $this->log($positional, $options),
+                'log-project' => $this->logProject($positional, $options),
                 'recurring' => $this->recurring($options),
                 'entries' => $this->entries($options),
-                'tasks' => $this->tasks($positional),
+                'tasks' => $this->tasks($positional, $options),
                 'delete' => $this->delete($positional, $options),
                 'projects' => $this->projects(),
                 'auth' => $this->authorize(),
@@ -138,10 +146,9 @@ final class Application
 
             return self::EXIT_NOT_BILLABLE;
         } catch (TaskNameTooLongException $exception) {
-            $this->error(
-                $exception->getMessage()
-                . ' Name the task with --task-name="<name>", or log on an existing task with --task.'
-            );
+            $this->error($exception->getMessage() . ($command === 'log-project'
+                ? ' Use a shorter --task name.'
+                : ' Name the task with --task-name="<name>", or log on an existing task with --task.'));
 
             return self::EXIT_USAGE;
         } catch (InvalidArgumentException $exception) {
@@ -204,6 +211,58 @@ final class Application
     }
 
     /**
+     * Preview or save a time entry on a project's task, with no issue behind it.
+     *
+     * @param list<string>               $positional The project name and the time.
+     * @param array<string, string|true> $options    --task, --notes, --date and --confirm.
+     *
+     * @return int
+     *
+     * @throws InvalidArgumentException When the arguments are wrong.
+     */
+    private function logProject(array $positional, array $options): int
+    {
+        if (count($positional) !== 2) {
+            throw new InvalidArgumentException(
+                'log-project needs a project and a time, e.g. log-project "LMS Integration" 1h30m.'
+            );
+        }
+
+        $task = $this->task($options)
+            ?? throw new InvalidArgumentException('log-project needs a task, e.g. --task="Research".');
+        $notes = $this->notes($options)
+            ?? throw new InvalidArgumentException('log-project needs notes for the client, e.g. --notes="Researched the options".');
+        $request = new LogProjectTimeRequest(
+            $positional[0],
+            Duration::parse($positional[1]),
+            $this->date($options),
+            $task,
+            $notes
+        );
+        $service = ($this->service)();
+
+        if (!isset($options['confirm'])) {
+            $this->preview($service->prepareForProject($request, $this->today));
+            $this->line('');
+            $this->line('Not saved. Run again with --confirm to save it.');
+
+            return self::EXIT_OK;
+        }
+
+        $entry = $service->logForProject($request, $this->today)->entry();
+        $this->line(sprintf(
+            'Saved time entry %s: %s on "%s" (%s), %s.',
+            (string) $entry->id(),
+            $this->hours($entry->duration()),
+            $entry->task()->name(),
+            $entry->task()->project()->name(),
+            $entry->date()->format('Y-m-d')
+        ));
+
+        return self::EXIT_OK;
+    }
+
+    /**
      * Print a prepared entry for confirmation.
      *
      * @param PreparedEntry $prepared The entry.
@@ -213,7 +272,10 @@ final class Application
     private function preview(PreparedEntry $prepared): void
     {
         $entry = $prepared->entry();
-        $this->line('Issue:    ' . $prepared->issue()->reference() . ' (internal; not sent to Zoho)');
+        $issue = $prepared->issue();
+        $this->line(
+            'Issue:    ' . ($issue === null ? 'none (logged on the project directly)' : $issue->reference() . ' (internal; not sent to Zoho)')
+        );
         $this->line(
             'Task:     ' . $entry->task()->name() . ($prepared->createsTask() ? ' (new Zoho task)' : ' (existing task)')
         );
@@ -348,22 +410,35 @@ final class Application
     /**
      * List the tasks on a repository's Zoho project.
      *
-     * @param list<string> $positional The repository name.
+     * @param list<string>               $positional The repository name, unless --project is given.
+     * @param array<string, string|true> $options    --project, a Zoho project's name.
      *
      * @return int
      *
-     * @throws InvalidArgumentException When no repository is given.
+     * @throws InvalidArgumentException When neither a repository nor a project is given, or both are.
      */
-    private function tasks(array $positional): int
+    private function tasks(array $positional, array $options): int
     {
-        if (count($positional) !== 1) {
-            throw new InvalidArgumentException('tasks needs a repository, e.g. tasks bluebird-www.');
+        $project = isset($options['project']) && is_string($options['project']) && trim($options['project']) !== ''
+            ? trim($options['project'])
+            : null;
+
+        if (isset($options['project']) && $project === null) {
+            throw new InvalidArgumentException('--project needs a Zoho project name, e.g. --project="LMS Integration".');
         }
 
-        $tasks = ($this->service)()->tasksFor($positional[0]);
+        if (count($positional) !== ($project === null ? 1 : 0)) {
+            throw new InvalidArgumentException(
+                'tasks needs a repository or a project, e.g. tasks bluebird-www or tasks --project="LMS Integration".'
+            );
+        }
+
+        $tasks = $project === null
+            ? ($this->service)()->tasksFor($positional[0])
+            : ($this->service)()->tasksForProject($project);
 
         if ($tasks === []) {
-            $this->line("{$positional[0]}'s Zoho project has no tasks yet.");
+            $this->line(($project ?? "{$positional[0]}'s Zoho project") . ' has no tasks yet.');
         }
 
         foreach ($tasks as $task) {

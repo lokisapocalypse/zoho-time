@@ -42,6 +42,9 @@ final class Config
     /** @var list<RecurringEntry> */
     private readonly array $recurringEntries;
 
+    /** @var list<string> */
+    private readonly array $billableProjects;
+
     /**
      * Create the config.
      *
@@ -52,6 +55,7 @@ final class Config
      * @param list<string>          $billableTopics       Repository topics that mark a billed client.
      * @param array<string, string> $projectNames         Zoho project name per repository, where it differs from the repository name.
      * @param list<RecurringEntry>  $recurringEntries     Entries logged every month.
+     * @param list<string>          $billableProjects     Zoho projects time can be logged to without an issue.
      *
      * @throws RuntimeException When the data center isn't known.
      */
@@ -62,7 +66,8 @@ final class Config
         array $billableRepositories,
         array $billableTopics,
         array $projectNames,
-        array $recurringEntries = []
+        array $recurringEntries = [],
+        array $billableProjects = []
     ) {
         if (!isset(self::DATA_CENTERS[$dataCenter])) {
             throw new RuntimeException(
@@ -78,6 +83,7 @@ final class Config
         $this->billableTopics = $billableTopics;
         $this->projectNames = $projectNames;
         $this->recurringEntries = $recurringEntries;
+        $this->billableProjects = $billableProjects;
     }
 
     /**
@@ -130,7 +136,8 @@ final class Config
             array_values(array_map('strval', $data['billable_repositories'] ?? [])),
             array_values(array_map('strval', $data['billable_topics'] ?? [])),
             array_map('strval', $data['projects'] ?? []),
-            self::recurringFrom($path, $data['recurring'] ?? [])
+            self::recurringFrom($path, $data['recurring'] ?? []),
+            array_values(array_map('strval', $data['billable_projects'] ?? []))
         );
     }
 
@@ -244,6 +251,16 @@ final class Config
     public function projectNameFor(string $repository): string
     {
         return $this->projectNames[$repository] ?? $repository;
+    }
+
+    /**
+     * Get the Zoho projects time can be logged to without an issue.
+     *
+     * @return list<string>
+     */
+    public function billableProjects(): array
+    {
+        return $this->billableProjects;
     }
 
     /**

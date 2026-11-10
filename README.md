@@ -21,8 +21,10 @@ zoho-time log bluebird-www#39 1h05m [--date=2026-10-01] --confirm  # save
 zoho-time log bluebird-www#39 30m --task="Monthly maintenance"      # on an existing task
 zoho-time log bluebird-www#39 1h --task-name="Database backups"     # name the issue's new task
 zoho-time log bluebird-www#39 1h --notes="Set up nightly backups"   # client-facing notes
+zoho-time log-project "Bluebird Research" 1h30m --task="Research" --notes="Compared the options" [--confirm]
 zoho-time recurring [--month=2026-10] [--skip=2,5] [--confirm]      # the month's recurring entries
 zoho-time tasks bluebird-www
+zoho-time tasks --project="Bluebird Research"
 zoho-time entries [--date=2026-10-01]
 zoho-time delete <entry-id> [--confirm]
 zoho-time projects
@@ -31,9 +33,11 @@ zoho-time auth
 
 `--task` takes an existing task's name (ignoring case) or its ID, as listed by `zoho-time tasks <repo>`. `--task-name` can't be combined with it, and later entries on the same issue need the same `--task-name` to land on its task. `<time>` can be `1h05m`, `40m`, `1.25h`, `1.5` (hours) or `1:05`. An issue in another owner's repo is written `owner/repo#n`.
 
+`log-project` is for billable work with no GitHub issue, such as a client whose repos aren't yours or research before there's a repo. It logs on a Zoho project by name, which must be listed in `billable_projects`, on a task found by name or ID or created on save. `--task` and `--notes` are required, since there's no issue title to fall back on; the date, rounding and preview work as for `log`.
+
 `recurring` defaults to the current month; `--month` logs an earlier one. Its preview numbers the entries and says whether each is due (marking any whose task will be created), already logged, or can't be logged (no such project); `--skip` leaves out entries by number.
 
-Exit codes: 0 ok, 1 error (including a recurring entry that can't be logged), 2 bad arguments, 3 the repo isn't billable.
+Exit codes: 0 ok, 1 error (including a recurring entry that can't be logged), 2 bad arguments, 3 the repo (or, for `log-project`, the project) isn't billable.
 
 ## Setup
 
@@ -50,6 +54,7 @@ Requires PHP 8.4+ with curl, Composer, and an authenticated `gh`.
    - `organization_id`: in Zoho Invoice under Settings → Organization Profile.
    - `github_owner`: the GitHub user or organization for short references like `bluebird-www#39`.
    - `billable_repositories` and `billable_topics`: which repos are billable, by name or by topic.
+   - `billable_projects` (optional): Zoho projects that `log-project` can log to without an issue, by name.
    - `projects`: only for repos whose Zoho project isn't named exactly like the repo (matched case-insensitively), e.g. `{"harbor-clinic": "Harbor Family Clinic"}`.
    - `recurring` (optional): the entries logged every month, each with the Zoho `project` name, the `task` on it (created if missing), the `time` (e.g. `0:06`, not rounded) and client-facing `notes`.
 

@@ -166,4 +166,44 @@ final class TimeEntryTest extends TestCase
             $notes
         );
     }
+
+    /**
+     * Check that time on a project's task, with no issue, is rounded up and keeps the given notes.
+     *
+     * @return void
+     */
+    public function testBillsProjectTimeWithItsNotes(): void
+    {
+        $task = Task::named(new Project('p2', 'Bluebird Research'), 'Research');
+        $entry = TimeEntry::forProject(
+            $task,
+            'u1',
+            new DateTimeImmutable('2026-10-01'),
+            new Duration(50),
+            new DateTimeImmutable('2026-10-01'),
+            '  Compared the options  '
+        );
+
+        $this->assertSame(60, $entry->duration()->minutes());
+        $this->assertSame('Compared the options', $entry->notes());
+    }
+
+    /**
+     * Check that project time needs notes, since there's no issue title to use.
+     *
+     * @return void
+     */
+    public function testRefusesProjectTimeWithoutNotes(): void
+    {
+        $this->expectException(DomainException::class);
+
+        TimeEntry::forProject(
+            Task::named(new Project('p2', 'Bluebird Research'), 'Research'),
+            'u1',
+            new DateTimeImmutable('2026-10-01'),
+            new Duration(30),
+            new DateTimeImmutable('2026-10-01'),
+            ''
+        );
+    }
 }
